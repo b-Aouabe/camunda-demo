@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1y51jt3" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.37.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.23.0">
+  <bpmn:process id="customer-onboarding" name="Customer Onboarding Process" isExecutable="true" camunda:historyTimeToLive="180">
+    <bpmn:startEvent id="StartEvent_1" name="Customer Application Received">
+      <bpmn:outgoing>Flow_1w8nokc</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_1w8nokc" sourceRef="StartEvent_1" targetRef="validateCustomerData" />
+    <bpmn:serviceTask id="validateCustomerData" name="Validate Customer Data" camunda:class="ma.adria.bank.camundademo.delegate.ValidateCustomerDataDelegate">
+      <bpmn:incoming>Flow_1w8nokc</bpmn:incoming>
+      <bpmn:outgoing>Flow_105tv1b</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_105tv1b" sourceRef="validateCustomerData" targetRef="performCreditCheck" />
+    <bpmn:serviceTask id="performCreditCheck" name="Perform Credit Check" camunda:delegateExpression="${creditCheckDelegate}">
+      <bpmn:incoming>Flow_105tv1b</bpmn:incoming>
+      <bpmn:outgoing>Flow_0gqppx2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_0gqppx2" sourceRef="performCreditCheck" targetRef="assessRiskLevel" />
+    <bpmn:serviceTask id="assessRiskLevel" name="Assess Risk Level" camunda:delegateExpression="${assessRiskDelegate}">
+      <bpmn:incoming>Flow_0gqppx2</bpmn:incoming>
+      <bpmn:outgoing>Flow_04r16jh</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="gatewayHighRisk" name="High Risk?">
+      <bpmn:incoming>Flow_04r16jh</bpmn:incoming>
+      <bpmn:outgoing>Flow_0xbg5qc</bpmn:outgoing>
+      <bpmn:outgoing>Flow_0x8ht8p</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_04r16jh" sourceRef="assessRiskLevel" targetRef="gatewayHighRisk" />
+    <bpmn:sequenceFlow id="Flow_0xbg5qc" name="High Risk" sourceRef="gatewayHighRisk" targetRef="manualApproval">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${riskLevel == 'HIGH'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:userTask id="manualApproval" name="Manual Approval Required" camunda:assignee="demo">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="approved" label="Approve Customer?" type="boolean" defaultValue="false" />
+          <camunda:formField id="approvalComments" label="Comments" type="string" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0xbg5qc</bpmn:incoming>
+      <bpmn:outgoing>Flow_0682ofr</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_1r0e0az" name="Approved?">
+      <bpmn:incoming>Flow_0682ofr</bpmn:incoming>
+      <bpmn:outgoing>Flow_0ayd9j0</bpmn:outgoing>
+      <bpmn:outgoing>Flow_1j70moq</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0682ofr" sourceRef="manualApproval" targetRef="Gateway_1r0e0az" />
+    <bpmn:sequenceFlow id="Flow_0ayd9j0" name="Approved" sourceRef="Gateway_1r0e0az" targetRef="createAccount">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_1j70moq" name="Rejected" sourceRef="Gateway_1r0e0az" targetRef="sendRejectionEmail">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${approved == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_0x8ht8p" name="Low/Medium Risk" sourceRef="gatewayHighRisk" targetRef="createAccount">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${riskLevel != 'HIGH'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:endEvent id="Event_0q69iin" name="Customer Rejected">
+      <bpmn:incoming>Flow_0ocslh3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_0ocslh3" sourceRef="sendRejectionEmail" targetRef="Event_0q69iin" />
+    <bpmn:serviceTask id="createAccount" name="Create Account" camunda:delegateExpression="${accountCreationDelegate}">
+      <bpmn:incoming>Flow_0ayd9j0</bpmn:incoming>
+      <bpmn:incoming>Flow_0x8ht8p</bpmn:incoming>
+      <bpmn:outgoing>Flow_10yk3jb</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="sendRejectionEmail" name="Send Rejection Email" camunda:delegateExpression="${rejectionEmailDelegate}">
+      <bpmn:incoming>Flow_1j70moq</bpmn:incoming>
+      <bpmn:outgoing>Flow_0ocslh3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_10yk3jb" sourceRef="createAccount" targetRef="sendWelcomeEmail" />
+    <bpmn:serviceTask id="sendWelcomeEmail" name="Send Welcome Email" camunda:delegateExpression="${welcomeEmailDelegate}">
+      <bpmn:incoming>Flow_10yk3jb</bpmn:incoming>
+      <bpmn:outgoing>Flow_04eixg1</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="Event_1cdnh4m" name="Customer Enboarded">
+      <bpmn:incoming>Flow_04eixg1</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_04eixg1" sourceRef="sendWelcomeEmail" targetRef="Event_1cdnh4m" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="customer-onboarding">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="182" y="232" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="173" y="275" width="54" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_11sk0fc_di" bpmnElement="validateCustomerData">
+        <dc:Bounds x="270" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0u6xze6_di" bpmnElement="performCreditCheck">
+        <dc:Bounds x="430" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0ew4kj1_di" bpmnElement="assessRiskLevel">
+        <dc:Bounds x="590" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1469fco_di" bpmnElement="gatewayHighRisk" isMarkerVisible="true">
+        <dc:Bounds x="755" y="225" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="753" y="201" width="54" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1w7aqt3_di" bpmnElement="manualApproval">
+        <dc:Bounds x="870" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1r0e0az_di" bpmnElement="Gateway_1r0e0az" isMarkerVisible="true">
+        <dc:Bounds x="1035" y="225" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1033" y="285" width="53" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0q69iin_di" bpmnElement="Event_0q69iin">
+        <dc:Bounds x="1322" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1317" y="145" width="49" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0ay6tyx_di" bpmnElement="createAccount">
+        <dc:Bounds x="1150" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_01mkaz1_di" bpmnElement="sendRejectionEmail">
+        <dc:Bounds x="1150" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0epjdg9_di" bpmnElement="sendWelcomeEmail">
+        <dc:Bounds x="1320" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1cdnh4m_di" bpmnElement="Event_1cdnh4m">
+        <dc:Bounds x="1492" y="232" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1484" y="275" width="55" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1w8nokc_di" bpmnElement="Flow_1w8nokc">
+        <di:waypoint x="218" y="250" />
+        <di:waypoint x="270" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_105tv1b_di" bpmnElement="Flow_105tv1b">
+        <di:waypoint x="370" y="250" />
+        <di:waypoint x="430" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0gqppx2_di" bpmnElement="Flow_0gqppx2">
+        <di:waypoint x="530" y="250" />
+        <di:waypoint x="590" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_04r16jh_di" bpmnElement="Flow_04r16jh">
+        <di:waypoint x="690" y="250" />
+        <di:waypoint x="755" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0xbg5qc_di" bpmnElement="Flow_0xbg5qc">
+        <di:waypoint x="805" y="250" />
+        <di:waypoint x="870" y="250" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="816" y="232" width="48" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0x8ht8p_di" bpmnElement="Flow_0x8ht8p">
+        <di:waypoint x="780" y="275" />
+        <di:waypoint x="780" y="390" />
+        <di:waypoint x="1200" y="390" />
+        <di:waypoint x="1200" y="290" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="946" y="372" width="88" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0682ofr_di" bpmnElement="Flow_0682ofr">
+        <di:waypoint x="970" y="250" />
+        <di:waypoint x="1035" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0ayd9j0_di" bpmnElement="Flow_0ayd9j0">
+        <di:waypoint x="1085" y="250" />
+        <di:waypoint x="1150" y="250" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1094" y="232" width="47" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1j70moq_di" bpmnElement="Flow_1j70moq">
+        <di:waypoint x="1060" y="225" />
+        <di:waypoint x="1060" y="120" />
+        <di:waypoint x="1150" y="120" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1053" y="170" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0ocslh3_di" bpmnElement="Flow_0ocslh3">
+        <di:waypoint x="1250" y="120" />
+        <di:waypoint x="1322" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_10yk3jb_di" bpmnElement="Flow_10yk3jb">
+        <di:waypoint x="1250" y="250" />
+        <di:waypoint x="1320" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_04eixg1_di" bpmnElement="Flow_04eixg1">
+        <di:waypoint x="1420" y="250" />
+        <di:waypoint x="1492" y="250" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
